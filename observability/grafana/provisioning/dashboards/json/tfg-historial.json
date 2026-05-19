@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS total FROM extracciones",
+          "refId": "A"
+        }
+      ],
+      "title": "Total extracciones",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["mean"], "fields": "", "values": false }, "textMode": "auto" },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+          "format": "table",
+          "rawSql": "SELECT ROUND(AVG(duration_ms), 0) AS promedio_ms FROM extracciones WHERE duration_ms IS NOT NULL",
+          "refId": "A"
+        }
+      ],
+      "title": "Tiempo medio (ms)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "id": 3,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+          "format": "table",
+          "rawSql": "SELECT id, created_at, substr(url, 1, 60) AS url, modelo, filas_count, duration_ms, status FROM extracciones ORDER BY id DESC LIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "title": "Últimas extracciones",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
+      "id": 4,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "datasource": { "type": "frser-sqlite-datasource", "uid": "tfg-sqlite" },
+          "format": "table",
+          "rawSql": "SELECT f.etiqueta, f.valor FROM extraccion_filas f WHERE f.extraccion_id = (SELECT MAX(id) FROM extracciones) AND f.valor IS NOT NULL ORDER BY f.valor DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "title": "Última extracción (barras)",
+      "type": "barchart"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["tfg", "historial"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TFG · Historial de extracciones",
+  "uid": "tfg-historial",
+  "version": 1
+}

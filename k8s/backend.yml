@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: tfg-backend:v1
+        imagePullPolicy: Never  # ¡CRUCIAL! Le dice a K8s que use la imagen que acabamos de meter a mano, que no la busque en internet.
+        ports:
+        - containerPort: 8000
+        env:
+        - name: HISTORY_ENABLED
+          value: "1"
+        - name: HISTORY_DB_PATH
+          value: /data/historial.db
+        volumeMounts:
+        - name: historial-data
+          mountPath: /data
+      volumes:
+      - name: historial-data
+        persistentVolumeClaim:
+          claimName: historial-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend  # Así es como tu frontend.py lo buscará (http://backend:8000)
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000

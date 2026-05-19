@@ -1,0 +1,35 @@
+# Capa opcional: historial SQLite + Grafana (no sustituye docker-compose.yml)
+#
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.historial.yml up -d --build
+#
+# Grafana: http://localhost:3000  (admin / admin)
+# La app Streamlit sigue en http://localhost:8501
+
+services:
+  backend:
+    environment:
+      HISTORY_ENABLED: "1"
+      HISTORY_DB_PATH: /data/historial.db
+    volumes:
+      - historial_data:/data
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_INSTALL_PLUGINS: frser-sqlite-datasource
+    volumes:
+      - historial_data:/data
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - tfg_network
+    depends_on:
+      - backend
+
+volumes:
+  historial_data:

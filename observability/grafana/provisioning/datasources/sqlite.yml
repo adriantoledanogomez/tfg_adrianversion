@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: TFG Historial SQLite
+    uid: tfg-sqlite
+    type: frser-sqlite-datasource
+    access: proxy
+    isDefault: true
+    editable: true
+    jsonData:
+      path: /data/historial.db
