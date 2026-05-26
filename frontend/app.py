@@ -380,6 +380,9 @@ with col_b:
 
 run = st.button("Generar análisis", type="primary", use_container_width=True)
 
+if "datos_resultado" not in st.session_state:
+    st.session_state.datos_resultado = None
+
 if run:
     if not url_input or not prompt_input:
         st.warning("Indica **URL** e **instrucciones** antes de continuar.")
@@ -415,52 +418,55 @@ if run:
             st.stop()
 
         body = respuesta.json()
-        datos_backend = body.get("data")
-        datos_backend = normalize_backend_payload(datos_backend)
+        datos_backend = normalize_backend_payload(body.get("data"))
+        st.session_state.datos_resultado = datos_backend
 
-        mostrar_json = st.toggle("Ver JSON devuelto por la IA", value=False)
-        if mostrar_json:
-            st.code(
-                json.dumps(datos_backend, ensure_ascii=False, indent=2),
-                language="json",
-            )
+if st.session_state.datos_resultado is not None:
+    datos_backend = st.session_state.datos_resultado
 
-        try:
-            df = pd.DataFrame(datos_backend)
-        except Exception as e:
-            st.error(f"No se pudo convertir la respuesta a tabla: {e}")
-            st.stop()
+    mostrar_json = st.toggle("Ver JSON devuelto por la IA", value=False)
+    if mostrar_json:
+        st.code(
+            json.dumps(datos_backend, ensure_ascii=False, indent=2),
+            language="json",
+        )
 
-        st.subheader("Tabla de datos")
-        st.dataframe(df, use_container_width=True, hide_index=True)
+    try:
+        df = pd.DataFrame(datos_backend)
+    except Exception as e:
+        st.error(f"No se pudo convertir la respuesta a tabla: {e}")
+        st.stop()
 
-        cols = df.columns.tolist()
-        if len(cols) < 2:
-            st.warning("Se necesitan al menos **dos columnas** (etiquetas y valores numéricos).")
-            st.stop()
+    st.subheader("Tabla de datos")
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
-        name_col, value_col = cols[0], cols[1]
-        df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
+    cols = df.columns.tolist()
+    if len(cols) < 2:
+        st.warning("Se necesitan al menos **dos columnas** (etiquetas y valores numéricos).")
+        st.stop()
 
-        if tipo_orden == "Mayor a menor":
-            df = df.sort_values(by=value_col, ascending=False)
-        elif tipo_orden == "Menor a mayor":
-            df = df.sort_values(by=value_col, ascending=True)
+    name_col, value_col = cols[0], cols[1]
+    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
 
-        if limite_datos > 0:
-            df_plot = df.head(limite_datos)
-        else:
-            df_plot = df
+    if tipo_orden == "Mayor a menor":
+        df = df.sort_values(by=value_col, ascending=False)
+    elif tipo_orden == "Menor a mayor":
+        df = df.sort_values(by=value_col, ascending=True)
 
-        st.subheader("Visualización")
-        if tipo_grafico == "Barras (Altair)":
-            render_bar_altair(df_plot, name_col, value_col)
-        elif tipo_grafico == "Mapa España (CCAA)":
-            render_choropleth_spain(df_plot, name_col, value_col)
-        else:
-            render_heatmap_bars(df_plot, name_col, value_col)
+    if limite_datos > 0:
+        df_plot = df.head(limite_datos)
+    else:
+        df_plot = df
 
-else:
+    st.subheader("Visualización")
+    if tipo_grafico == "Barras (Altair)":
+        render_bar_altair(df_plot, name_col, value_col)
+    elif tipo_grafico == "Mapa España (CCAA)":
+        render_choropleth_spain(df_plot, name_col, value_col)
+    else:
+        render_heatmap_bars(df_plot, name_col, value_col)
+
+elif not run:
     st.info(
         "Elige una fuente con datos tabulares o descriptivos y pide explícitamente **dos columnas**: "
         "nombres y valores numéricos. Para el mapa de España, pide datos por **comunidad autónoma**."
