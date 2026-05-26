@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend-deployment
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -12,17 +13,31 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend-job-runner
+      automountServiceAccountToken: true
       containers:
       - name: backend
         image: tfg-backend:v1
-        imagePullPolicy: Never  # ¡CRUCIAL! Le dice a K8s que use la imagen que acabamos de meter a mano, que no la busque en internet.
+        imagePullPolicy: Never
         ports:
         - containerPort: 8000
         env:
+        - name: WORKER_MODE
+          value: "kubernetes"
         - name: HISTORY_ENABLED
           value: "1"
         - name: HISTORY_DB_PATH
           value: /data/historial.db
+        - name: JOBS_ROOT
+          value: /data/jobs
+        - name: OLLAMA_URL
+          value: "http://ollama:11434"
+        - name: WORKER_IMAGE
+          value: "tfg-backend:v1"
+        - name: WORKER_IMAGE_PULL_POLICY
+          value: "Never"
+        - name: K8S_NAMESPACE
+          value: "default"
         volumeMounts:
         - name: historial-data
           mountPath: /data
@@ -34,7 +49,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend  # Así es como tu frontend.py lo buscará (http://backend:8000)
+  name: backend
 spec:
   selector:
     app: backend

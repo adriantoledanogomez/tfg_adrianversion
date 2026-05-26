@@ -3,3 +3,4 @@ uvicorn
 requests
 beautifulsoup4
 pydantic
+kubernetes>=28.1.0

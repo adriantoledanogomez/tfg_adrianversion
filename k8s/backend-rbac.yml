@@ -1,0 +1,60 @@
+# Permisos para que el orquestador cree Jobs por consulta
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend-job-runner
+  namespace: default
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backend-job-runner
+  namespace: default
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backend-job-runner
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: backend-job-runner
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backend-job-runner
+---
+# Respaldo: permisos a nivel cluster (evita problemas de namespace en Docker Desktop)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tfg-backend-job-creator
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tfg-backend-job-creator
+subjects:
+  - kind: ServiceAccount
+    name: backend-job-runner
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tfg-backend-job-creator

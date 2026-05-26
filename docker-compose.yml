@@ -5,6 +5,8 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    environment:
+      WORKER_MODE: sync
     networks:
       - tfg_network
 
@@ -28,6 +30,19 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - tfg_network
+    entrypoint: ["/bin/sh", "-c", "sleep 10 && ollama pull qwen2.5:7b"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
 
 networks:
   tfg_network:

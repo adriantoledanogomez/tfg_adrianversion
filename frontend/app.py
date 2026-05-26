@@ -348,19 +348,6 @@ if run:
         datos_backend = body.get("data")
         datos_backend = normalize_backend_payload(datos_backend)
 
-        st.success("Proceso completado correctamente.")
-
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.metric("Estado API", "OK", delta=None)
-        with m2:
-            st.metric(
-                "Claves en JSON",
-                len(datos_backend) if isinstance(datos_backend, dict) else 0,
-            )
-        with m3:
-            st.metric("Endpoint", endpoint.split("/")[-1])
-
         with st.expander("JSON devuelto por la IA", expanded=False):
             st.json(datos_backend)
 

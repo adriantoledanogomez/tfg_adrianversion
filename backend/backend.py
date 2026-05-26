@@ -1,9 +1,5 @@
-import json
 import os
 import time
-
-import requests
-from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -17,11 +13,16 @@ from historial import (
     listar_extracciones_tabla,
     listar_filas_grafana,
 )
+from pipeline import OLLAMA_MODEL, PipelineError, procesar_consulta
 
-app = FastAPI(title="Backend TFG IA")
+# sync = procesar en este pod (Docker Compose)
+# kubernetes = un Job efímero por consulta (TFG / K8s)
+WORKER_MODE = os.getenv("WORKER_MODE", "sync").strip().lower()
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434").rstrip("/")
+app = FastAPI(
+    title="Backend TFG IA",
+    description="Orquestador API. Con WORKER_MODE=kubernetes lanza un Job por consulta.",
+)
 
 
 @app.on_event("startup")
@@ -34,71 +35,90 @@ class PeticionUsuario(BaseModel):
     prompt: str
 
 
-def extraer_texto_web(url: str) -> str:
-    """Descarga la web y extrae solo el texto limpio."""
+def _procesar_sync(url: str, prompt: str) -> tuple[dict, int]:
+    inicio = time.perf_counter()
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        for script in soup(["script", "style"]):
-            script.extract()
-
-        texto_limpio = soup.get_text(separator=" ", strip=True)
-        return texto_limpio[:7500]
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error al raspar la URL: {str(e)}")
+        datos = procesar_consulta(url, prompt)
+        duration_ms = int((time.perf_counter() - inicio) * 1000)
+        return datos, duration_ms
+    except PipelineError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-def llamar_ollama(texto_contexto: str, prompt_usuario: str) -> dict:
-    """Envía el texto y el prompt a Ollama forzando salida JSON estricta."""
-    prompt_completo = f"""
-    Eres un extractor de datos implacable. Tu ÚNICA función es leer el texto y extraer lo que pide el usuario en un JSON puro.
+def _procesar_kubernetes(url: str, prompt: str) -> tuple[dict, int, str]:
+    from k8s_jobs import ejecutar_consulta_en_job
 
-    REGLA 1: No incluyas claves como 'status', 'message', 'data' o 'title'.
-    REGLA 2: El formato DEBE ser estrictamente un diccionario.
-    REGLA 3: ESTÁ ESTRICTAMENTE PROHIBIDO usar los datos del ejemplo en tu respuesta.
-    REGLA 4: El JSON debe contener EXACTAMENTE DOS CLAVES. Una clave para los nombres (como lista de textos) y otra clave para los valores (como lista de números).
-    REGLA 5: Ambas listas DEBEN tener exactamente el mismo número de elementos (misma longitud). NO uses diccionarios anidados.
+    try:
+        resultado = ejecutar_consulta_en_job(url, prompt)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Error al ejecutar el Job: {exc}"
+        ) from exc
 
-    EJEMPLO DE ESTRUCTURA (NO USAR ESTOS DATOS):
-    {{
-        "Entidad": ["Ejemplo A", "Ejemplo B"],
-        "Valor": [100, 200]
-    }}
+    job_id = resultado.get("job_id", "")
+    duration_ms = int(resultado.get("duration_ms") or 0)
 
-    INSTRUCCIÓN DEL USUARIO: {prompt_usuario}
+    if resultado.get("status") == "error":
+        raise HTTPException(
+            status_code=500,
+            detail=resultado.get("error", "Error en el worker"),
+        )
 
-    TEXTO FUENTE:
-    {texto_contexto}
-    """
+    return resultado.get("data") or {}, duration_ms, job_id
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt_completo,
-        "format": "json",
-        "stream": False,
-        "options": {"temperature": 0.0},
+
+@app.get("/api/modo")
+def api_modo():
+    return {
+        "worker_mode": WORKER_MODE,
+        "ollama_model": OLLAMA_MODEL,
+        "descripcion": (
+            "kubernetes = un Job por consulta; sync = procesamiento en este pod"
+        ),
     }
 
-    try:
-        response = requests.post(
-            f"{OLLAMA_URL}/api/generate", json=payload, timeout=600
-        )
-        response.raise_for_status()
-        respuesta_ia = response.json().get("response", "{}")
-        return json.loads(respuesta_ia)
 
-    except Exception as e:
-        print(f"Error interno en Ollama: {str(e)}")
-        return {"Error": ["No se pudo generar el JSON"], "Detalle": [str(e)]}
+@app.get("/api/ollama/estado")
+def api_ollama_estado():
+    """Comprueba que Ollama responde y si el modelo configurado está descargado."""
+    import requests as req
+    from pipeline import OLLAMA_MODEL, OLLAMA_URL
+
+    base = OLLAMA_URL.rstrip("/")
+    out: dict = {"ollama_url": base, "modelo_configurado": OLLAMA_MODEL}
+    try:
+        tags = req.get(f"{base}/api/tags", timeout=10)
+        out["tags_http"] = tags.status_code
+        if tags.status_code == 200:
+            nombres = [m.get("name", "") for m in tags.json().get("models", [])]
+            out["modelos_instalados"] = nombres
+            out["modelo_disponible"] = any(
+                OLLAMA_MODEL in n or n.startswith(OLLAMA_MODEL.split(":")[0])
+                for n in nombres
+            )
+        else:
+            out["tags_error"] = tags.text[:300]
+    except Exception as exc:
+        out["error"] = str(exc)
+        out["sugerencia"] = (
+            "Comprueba que el pod ollama está Running: kubectl get pods -l app=ollama"
+        )
+    return out
+
+
+@app.get("/api/k8s-diagnostico")
+def api_k8s_diagnostico():
+    if WORKER_MODE != "kubernetes":
+        return {"worker_mode": WORKER_MODE, "mensaje": "No aplica fuera de kubernetes"}
+    from k8s_jobs import diagnostico_k8s_cliente
+
+    return diagnostico_k8s_cliente()
 
 
 @app.get("/api/historial")
 def api_historial(limit: int = 20):
-    """Solo responde con datos si HISTORY_ENABLED=1 (para depuración / TFG)."""
     if not HISTORY_ENABLED:
         return {"enabled": False, "items": []}
     return {"enabled": True, "items": listar_extracciones(limit=limit)}
@@ -130,27 +150,32 @@ def api_historial_tabla(limit: int = 25):
 
 @app.post("/api/generar-grafico")
 def procesar_peticion(peticion: PeticionUsuario):
-    inicio = time.perf_counter()
-    print(f"1. Procesando URL: {peticion.url}")
+    print(f"[orquestador] modo={WORKER_MODE} url={peticion.url}")
 
+    job_id = ""
     try:
-        texto_web = extraer_texto_web(peticion.url)
-        print("2. Texto extraído. Llamando a Ollama...")
-        datos_extraidos = llamar_ollama(texto_web, peticion.prompt)
-        print("3. Datos procesados correctamente.")
-        duration_ms = int((time.perf_counter() - inicio) * 1000)
+        if WORKER_MODE == "kubernetes":
+            datos, duration_ms, job_id = _procesar_kubernetes(
+                peticion.url, peticion.prompt
+            )
+        else:
+            datos, duration_ms = _procesar_sync(peticion.url, peticion.prompt)
+
         guardar_extraccion(
             url=peticion.url,
             prompt=peticion.prompt,
             modelo=OLLAMA_MODEL,
-            datos=datos_extraidos,
+            datos=datos,
             duration_ms=duration_ms,
             status="success",
         )
-        return {"status": "success", "data": datos_extraidos}
+        body = {"status": "success", "data": datos, "worker_mode": WORKER_MODE}
+        if job_id:
+            body["job_id"] = job_id
+        return body
 
-    except HTTPException:
-        duration_ms = int((time.perf_counter() - inicio) * 1000)
+    except HTTPException as exc:
+        duration_ms = 0
         guardar_extraccion(
             url=peticion.url,
             prompt=peticion.prompt,
@@ -158,6 +183,6 @@ def procesar_peticion(peticion: PeticionUsuario):
             datos=None,
             duration_ms=duration_ms,
             status="error",
-            error_message="scrape_failed",
+            error_message=str(exc.detail),
         )
         raise
