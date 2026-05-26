@@ -16,6 +16,9 @@ spec:
       - name: frontend
         image: tfg-frontend:v1
         imagePullPolicy: Never
+        env:
+        - name: API_TIMEOUT_SEC
+          value: "1200"
         ports:
         - containerPort: 8501
 ---

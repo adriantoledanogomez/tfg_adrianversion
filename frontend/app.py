@@ -20,6 +20,8 @@ st.set_page_config(
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000").rstrip("/")
 GRAFANA_URL = os.environ.get("GRAFANA_URL", "").rstrip("/")
+# Debe ser >= JOB_TIMEOUT_SEC del backend (Job + Ollama en CPU puede tardar mucho)
+API_TIMEOUT_SEC = int(os.environ.get("API_TIMEOUT_SEC", "1200"))
 
 SPAIN_CCAA_GEOJSON_URL = (
     "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@master/"
@@ -326,16 +328,27 @@ if run:
         st.warning("Indica **URL** e **instrucciones** antes de continuar.")
     else:
         endpoint = f"{backend_override.rstrip('/')}/api/generar-grafico"
-        with st.spinner("Extrayendo texto, llamando al modelo y preparando visualizaciones…"):
+        with st.spinner(
+            f"Procesando (puede tardar 10–20 min en la nube: Job + Ollama). "
+            f"Espera hasta {API_TIMEOUT_SEC // 60} min…"
+        ):
             try:
                 respuesta = requests.post(
                     endpoint,
                     json={"url": url_input, "prompt": prompt_input},
-                    timeout=600,
+                    timeout=API_TIMEOUT_SEC,
                 )
             except requests.exceptions.ConnectionError:
                 st.error(
                     "No hay conexión con el backend. Comprueba la URL y que el servicio esté en marcha."
+                )
+                st.stop()
+            except requests.exceptions.ReadTimeout:
+                st.error(
+                    f"La petición superó el tiempo de espera ({API_TIMEOUT_SEC}s). "
+                    "En la VM revisa: `kubectl get jobs -l app=tfg-worker` y "
+                    "`kubectl logs -l app=tfg-worker --tail=50`. "
+                    "Ollama en CPU puede tardar mucho; prueba un modelo más pequeño (llama3.2:3b)."
                 )
                 st.stop()
 

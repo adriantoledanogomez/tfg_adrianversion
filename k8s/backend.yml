@@ -38,6 +38,8 @@ spec:
           value: "Never"
         - name: K8S_NAMESPACE
           value: "default"
+        - name: JOB_TIMEOUT_SEC
+          value: "1200"
         volumeMounts:
         - name: historial-data
           mountPath: /data
