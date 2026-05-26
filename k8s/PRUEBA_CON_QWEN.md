@@ -44,9 +44,22 @@ kubectl get pods
 
 ## 5. Comprobar antes de usar Streamlit
 
+El nombre `backend` **solo funciona dentro del clúster**, no desde SSH en la VM.
+`curl http://backend:8000/...` en la shell de la VM dará `Could not resolve host`.
+
+**Opción A — pod temporal (recomendado):**
+
 ```bash
-kubectl run curl --rm -it --image=curlimages/curl --restart=Never -- \
+kubectl run curl-test --rm -i --restart=Never --image=curlimages/curl -- \
   curl -s http://backend:8000/api/ollama/estado
+```
+
+**Opción B — port-forward (prueba desde la VM con localhost):**
+
+```bash
+kubectl port-forward svc/backend 8000:8000
+# En otra terminal SSH:
+curl -s http://127.0.0.1:8000/api/ollama/estado
 ```
 
 `modelo_disponible` debe ser `true` para `qwen2.5:7b`.

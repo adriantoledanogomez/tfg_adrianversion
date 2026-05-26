@@ -32,11 +32,8 @@ spec:
           value: /data/jobs
         - name: OLLAMA_URL
           value: "http://ollama:11434"
-        # Calidad (recomendado en VM sin GPU; tarda más pero extrae mejor)
         - name: OLLAMA_MODEL
           value: "qwen2.5:7b"
-        # Modo rápido (cambiar OLLAMA_MODEL y bajar timeouts):
-        # value: "llama3.2:3b"
         - name: OLLAMA_TIMEOUT_SEC
           value: "3600"
         - name: OLLAMA_NUM_CTX

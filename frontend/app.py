@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import unicodedata
@@ -137,7 +138,64 @@ def inject_custom_css() -> None:
         """
         <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
+
         html, body, [class*="st-"] { font-family: 'DM Sans', system-ui, sans-serif; }
+
+        /* Iconos Material (si no cargan, sale texto "keyboard_...") */
+        [data-testid="stIconMaterial"] {
+            font-family: 'Material Symbols Outlined', sans-serif !important;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            letter-spacing: normal;
+            text-transform: none;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+        }
+
+        /* Botón colapsar sidebar → tres rayitas */
+        [data-testid="stSidebarCollapseButton"] button,
+        [data-testid="stSidebarCollapsedControl"] button,
+        div[data-testid="collapsedControl"] button {
+            min-width: 2.5rem;
+        }
+        [data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],
+        [data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"],
+        div[data-testid="collapsedControl"] [data-testid="stIconMaterial"] {
+            font-size: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+        [data-testid="stSidebarCollapseButton"] button::before,
+        [data-testid="stSidebarCollapsedControl"] button::before,
+        div[data-testid="collapsedControl"] button::before {
+            content: "☰";
+            font-family: system-ui, sans-serif;
+            font-size: 1.35rem;
+            line-height: 1;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        /* Expander: título legible, sin solapar icono */
+        div[data-testid="stExpander"] details > summary {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-weight: 600;
+        }
+        div[data-testid="stExpander"] summary [data-testid="stIconMaterial"] {
+            flex-shrink: 0;
+            min-width: 1.25rem;
+        }
+        div[data-testid="stExpander"] details { border-radius: 10px; }
+        div[data-testid="stExpander"] .streamlit-json,
+        div[data-testid="stExpander"] pre {
+            font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+            font-size: 0.85rem;
+        }
+
         .hero {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #2563eb 100%);
             color: #f8fafc;
@@ -148,7 +206,6 @@ def inject_custom_css() -> None:
         }
         .hero h1 { margin: 0 0 0.35rem 0; font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; }
         .hero p { margin: 0; opacity: 0.9; font-size: 0.98rem; line-height: 1.45; }
-        div[data-testid="stExpander"] details { border-radius: 10px; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -329,7 +386,7 @@ if run:
     else:
         endpoint = f"{backend_override.rstrip('/')}/api/generar-grafico"
         with st.spinner(
-            f"Procesando con qwen (puede tardar 20–40 min en la nube: Job + Ollama). "
+            f"Procesando con Ollama (puede tardar varios minutos). "
             f"Espera hasta {API_TIMEOUT_SEC // 60} min…"
         ):
             try:
@@ -361,8 +418,12 @@ if run:
         datos_backend = body.get("data")
         datos_backend = normalize_backend_payload(datos_backend)
 
-        with st.expander("JSON devuelto por la IA", expanded=False):
-            st.json(datos_backend)
+        mostrar_json = st.toggle("Ver JSON devuelto por la IA", value=False)
+        if mostrar_json:
+            st.code(
+                json.dumps(datos_backend, ensure_ascii=False, indent=2),
+                language="json",
+            )
 
         try:
             df = pd.DataFrame(datos_backend)

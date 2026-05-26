@@ -138,7 +138,7 @@ def _worker_env(job_id: str, url: str, prompt: str) -> list[client.V1EnvVar]:
         ("OLLAMA_URL", os.getenv("OLLAMA_URL", "http://ollama:11434")),
         ("OLLAMA_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:7b")),
         ("JOBS_ROOT", str(JOBS_ROOT)),
-        ("OLLAMA_TIMEOUT_SEC", os.getenv("OLLAMA_TIMEOUT_SEC", "1800")),
+        ("OLLAMA_TIMEOUT_SEC", os.getenv("OLLAMA_TIMEOUT_SEC", "3600")),
         ("TEXTO_MAX_CHARS", os.getenv("TEXTO_MAX_CHARS", "7500")),
         ("OLLAMA_NUM_CTX", os.getenv("OLLAMA_NUM_CTX", "4096")),
         ("OLLAMA_NUM_PREDICT", os.getenv("OLLAMA_NUM_PREDICT", "1536")),

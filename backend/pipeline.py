@@ -12,10 +12,10 @@ from bs4 import BeautifulSoup
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434").rstrip("/")
-TEXTO_MAX_CHARS = int(os.getenv("TEXTO_MAX_CHARS", "7500"))
-OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "1800"))
+TEXTO_MAX_CHARS = int(os.getenv("TEXTO_MAX_CHARS", "6000"))
+OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "3600"))
 OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
-OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "1536"))
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "2048"))
 OLLAMA_MAX_FILAS = int(os.getenv("OLLAMA_MAX_FILAS", "15"))
 OLLAMA_JSON_RETRIES = int(os.getenv("OLLAMA_JSON_RETRIES", "1"))
 
