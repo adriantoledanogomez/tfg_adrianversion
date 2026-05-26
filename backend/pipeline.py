@@ -12,6 +12,9 @@ from bs4 import BeautifulSoup
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434").rstrip("/")
 TEXTO_MAX_CHARS = int(os.getenv("TEXTO_MAX_CHARS", "7500"))
+OLLAMA_TIMEOUT_SEC = int(os.getenv("OLLAMA_TIMEOUT_SEC", "1800"))
+OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "1536"))
 
 
 class PipelineError(Exception):
@@ -58,12 +61,16 @@ def llamar_ollama(texto_contexto: str, prompt_usuario: str) -> dict[str, Any]:
         "prompt": prompt_completo,
         "format": "json",
         "stream": False,
-        "options": {"temperature": 0.0},
+        "options": {
+            "temperature": 0.0,
+            "num_ctx": OLLAMA_NUM_CTX,
+            "num_predict": OLLAMA_NUM_PREDICT,
+        },
     }
 
     endpoint = f"{OLLAMA_URL}/api/generate"
     try:
-        response = requests.post(endpoint, json=payload, timeout=600)
+        response = requests.post(endpoint, json=payload, timeout=OLLAMA_TIMEOUT_SEC)
         if response.status_code == 404:
             cuerpo = response.text[:500]
             raise PipelineError(
@@ -77,6 +84,13 @@ def llamar_ollama(texto_contexto: str, prompt_usuario: str) -> dict[str, Any]:
         return json.loads(respuesta_ia)
     except PipelineError:
         raise
+    except requests.exceptions.ReadTimeout as exc:
+        raise PipelineError(
+            f"Ollama no terminó la inferencia en {OLLAMA_TIMEOUT_SEC}s "
+            f"(modelo={OLLAMA_MODEL}, url={OLLAMA_URL}). "
+            "En una VM sin GPU suele tardar mucho: usa un modelo pequeño "
+            "(llama3.2:3b) o sube OLLAMA_TIMEOUT_SEC / memoria del pod ollama."
+        ) from exc
     except requests.RequestException as exc:
         raise PipelineError(
             f"No se pudo contactar con Ollama en {OLLAMA_URL}: {exc}"

@@ -21,7 +21,7 @@ st.set_page_config(
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000").rstrip("/")
 GRAFANA_URL = os.environ.get("GRAFANA_URL", "").rstrip("/")
 # Debe ser >= JOB_TIMEOUT_SEC del backend (Job + Ollama en CPU puede tardar mucho)
-API_TIMEOUT_SEC = int(os.environ.get("API_TIMEOUT_SEC", "1200"))
+API_TIMEOUT_SEC = int(os.environ.get("API_TIMEOUT_SEC", "2400"))
 
 SPAIN_CCAA_GEOJSON_URL = (
     "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@master/"

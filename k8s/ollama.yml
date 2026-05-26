@@ -17,6 +17,20 @@ spec:
         image: ollama/ollama:latest
         ports:
         - containerPort: 11434
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "2"
+          limits:
+            memory: "14Gi"
+            cpu: "4"
+        volumeMounts:
+        - name: ollama-models
+          mountPath: /root/.ollama
+      volumes:
+      - name: ollama-models
+        persistentVolumeClaim:
+          claimName: ollama-pvc
 ---
 apiVersion: v1
 kind: Service

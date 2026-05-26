@@ -129,20 +129,26 @@ def _job_name(job_id: str) -> str:
     return f"tfg-worker-{safe}"
 
 
+def _worker_env(job_id: str, url: str, prompt: str) -> list[client.V1EnvVar]:
+    """Mismas variables que el backend para que el Job use la misma config de Ollama."""
+    pairs = [
+        ("JOB_ID", job_id),
+        ("URL", url),
+        ("PROMPT", prompt),
+        ("OLLAMA_URL", os.getenv("OLLAMA_URL", "http://ollama:11434")),
+        ("OLLAMA_MODEL", os.getenv("OLLAMA_MODEL", "qwen2.5:7b")),
+        ("JOBS_ROOT", str(JOBS_ROOT)),
+        ("OLLAMA_TIMEOUT_SEC", os.getenv("OLLAMA_TIMEOUT_SEC", "1800")),
+        ("TEXTO_MAX_CHARS", os.getenv("TEXTO_MAX_CHARS", "7500")),
+        ("OLLAMA_NUM_CTX", os.getenv("OLLAMA_NUM_CTX", "4096")),
+        ("OLLAMA_NUM_PREDICT", os.getenv("OLLAMA_NUM_PREDICT", "1536")),
+    ]
+    return [client.V1EnvVar(name=k, value=v) for k, v in pairs]
+
+
 def _build_job_object(name: str, job_id: str, url: str, prompt: str) -> client.V1Job:
     ns = _namespace_efectivo()
-    env = [
-        client.V1EnvVar(name="JOB_ID", value=job_id),
-        client.V1EnvVar(name="URL", value=url),
-        client.V1EnvVar(name="PROMPT", value=prompt),
-        client.V1EnvVar(
-            name="OLLAMA_URL", value=os.getenv("OLLAMA_URL", "http://ollama:11434")
-        ),
-        client.V1EnvVar(
-            name="OLLAMA_MODEL", value=os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
-        ),
-        client.V1EnvVar(name="JOBS_ROOT", value=str(JOBS_ROOT)),
-    ]
+    env = _worker_env(job_id, url, prompt)
     container = client.V1Container(
         name="worker",
         image=WORKER_IMAGE,
