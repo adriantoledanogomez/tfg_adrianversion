@@ -18,7 +18,7 @@ spec:
         imagePullPolicy: Never
         env:
         - name: API_TIMEOUT_SEC
-          value: "2400"
+          value: "4500"
         ports:
         - containerPort: 8501
 ---

@@ -32,17 +32,23 @@ spec:
           value: /data/jobs
         - name: OLLAMA_URL
           value: "http://ollama:11434"
-        # En VM sin GPU: modelo pequeño + menos texto = mucho más rápido
+        # Calidad (recomendado en VM sin GPU; tarda más pero extrae mejor)
         - name: OLLAMA_MODEL
-          value: "llama3.2:3b"
+          value: "qwen2.5:7b"
+        # Modo rápido (cambiar OLLAMA_MODEL y bajar timeouts):
+        # value: "llama3.2:3b"
         - name: OLLAMA_TIMEOUT_SEC
-          value: "1800"
+          value: "3600"
         - name: OLLAMA_NUM_CTX
           value: "4096"
         - name: OLLAMA_NUM_PREDICT
-          value: "1536"
+          value: "2048"
+        - name: OLLAMA_MAX_FILAS
+          value: "15"
+        - name: OLLAMA_JSON_RETRIES
+          value: "1"
         - name: TEXTO_MAX_CHARS
-          value: "5000"
+          value: "6000"
         - name: WORKER_IMAGE
           value: "tfg-backend:v1"
         - name: WORKER_IMAGE_PULL_POLICY
@@ -50,7 +56,7 @@ spec:
         - name: K8S_NAMESPACE
           value: "default"
         - name: JOB_TIMEOUT_SEC
-          value: "2100"
+          value: "4200"
         volumeMounts:
         - name: historial-data
           mountPath: /data

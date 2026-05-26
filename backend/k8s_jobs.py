@@ -142,6 +142,8 @@ def _worker_env(job_id: str, url: str, prompt: str) -> list[client.V1EnvVar]:
         ("TEXTO_MAX_CHARS", os.getenv("TEXTO_MAX_CHARS", "7500")),
         ("OLLAMA_NUM_CTX", os.getenv("OLLAMA_NUM_CTX", "4096")),
         ("OLLAMA_NUM_PREDICT", os.getenv("OLLAMA_NUM_PREDICT", "1536")),
+        ("OLLAMA_MAX_FILAS", os.getenv("OLLAMA_MAX_FILAS", "15")),
+        ("OLLAMA_JSON_RETRIES", os.getenv("OLLAMA_JSON_RETRIES", "1")),
     ]
     return [client.V1EnvVar(name=k, value=v) for k, v in pairs]
 

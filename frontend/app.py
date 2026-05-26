@@ -21,7 +21,7 @@ st.set_page_config(
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000").rstrip("/")
 GRAFANA_URL = os.environ.get("GRAFANA_URL", "").rstrip("/")
 # Debe ser >= JOB_TIMEOUT_SEC del backend (Job + Ollama en CPU puede tardar mucho)
-API_TIMEOUT_SEC = int(os.environ.get("API_TIMEOUT_SEC", "2400"))
+API_TIMEOUT_SEC = int(os.environ.get("API_TIMEOUT_SEC", "4500"))
 
 SPAIN_CCAA_GEOJSON_URL = (
     "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@master/"
@@ -329,7 +329,7 @@ if run:
     else:
         endpoint = f"{backend_override.rstrip('/')}/api/generar-grafico"
         with st.spinner(
-            f"Procesando (puede tardar 10–20 min en la nube: Job + Ollama). "
+            f"Procesando con qwen (puede tardar 20–40 min en la nube: Job + Ollama). "
             f"Espera hasta {API_TIMEOUT_SEC // 60} min…"
         ):
             try:
@@ -348,7 +348,7 @@ if run:
                     f"La petición superó el tiempo de espera ({API_TIMEOUT_SEC}s). "
                     "En la VM revisa: `kubectl get jobs -l app=tfg-worker` y "
                     "`kubectl logs -l app=tfg-worker --tail=50`. "
-                    "Ollama en CPU puede tardar mucho; prueba un modelo más pequeño (llama3.2:3b)."
+                    "Ollama en CPU puede tardar mucho; revisa logs del worker y que qwen2.5:7b esté descargado."
                 )
                 st.stop()
 
